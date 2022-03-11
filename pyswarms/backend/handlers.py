@@ -410,6 +410,8 @@ class VelocityHandler(HandlerMixin):
             Inverts and shrinks the velocity by the factor :code:`-z`.
         * Zero
             Sets the velocity of out-of-bounds particles to zero.
+        * Longtail
+            Following the lognormal distribution produce a high variation in the velocity in few cases.
 
         """
         self.strategy = strategy
@@ -529,7 +531,26 @@ class VelocityHandler(HandlerMixin):
             raise
         else:
             return new_vel
+    def longtail(self, velocity, clamp=None, **kwargs):
+        r"""Produce a velocity variation following the lognormal distribution in numpy. 
+        It is needed the parameter mu(mean) and sigma(standard deviation). They are default in 0 and 0.3 respectively.
+        The lognormal distribution will be set to 1 is the random number is lower than 2 to
+        reduce the volatility of the variations.
+        Following this equation:
+        .. math::
 
+            \mathbf{v_{i,t}} = \mathbf{v_{i,t}} * random.lognormal (mu,sigma)
+        """
+        if "mu" not in kwargs or "sigma" in kwargs:
+            mu, sigma = 0., 0.3 # mean and standard deviation
+        else:
+            mu, sigma = kwargs["mu"], kwargs["sigma"]
+        s = np.random.lognormal(mu, sigma,velocity.shape)
+        s = np.where(s<2,1,s)
+        new_vel = np.multiply(velocity, s)
+        if clamp is not None:
+            new_vel = self.__apply_clamp(new_vel, clamp)
+        return new_vel
     def zero(self, velocity, clamp=None, **kwargs):
         """Set velocity to zero if the particle is out of bounds"""
         try:
